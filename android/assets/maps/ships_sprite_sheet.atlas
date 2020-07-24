@@ -1,0 +1,33 @@
+ships_sprite_sheet.png
+size: 102, 127
+format: RGBA8888
+filter: Linear,Linear
+repeat: none
+1deckship
+  rotate: false
+  xy: 69, 66
+  size: 32, 32
+  orig: 32, 32
+  offset: 0, 0
+  index: -1
+2decksship
+  rotate: false
+  xy: 69, 1
+  size: 32, 63
+  orig: 32, 63
+  offset: 0, 0
+  index: -1
+3decksship
+  rotate: false
+  xy: 35, 1
+  size: 32, 94
+  orig: 32, 94
+  offset: 0, 0
+  index: -1
+4decksship
+  rotate: false
+  xy: 1, 1
+  size: 32, 125
+  orig: 32, 125
+  offset: 0, 0
+  index: -1
