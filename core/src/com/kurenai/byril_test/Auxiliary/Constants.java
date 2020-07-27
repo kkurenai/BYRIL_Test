@@ -8,7 +8,6 @@ public class Constants {
     public final static int MAP_SIZE_ROWS = 10;
     public final static int MAP_SIZE_COLUMNS = 10;
     public final static int MAP_CELL_SIZE = 31;
-    public final static int MAX_PLACE_SHIP_TRIES = 50;
     public final static int MAP_HOOD_SIZE = 1; // cells
     public final static int WORLD_WIDTH = 640;
     public final static int WORLD_HEIGHT = 360;

@@ -1,22 +1,18 @@
 package com.kurenai.byril_test.Battleground;
 
-import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
-import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.Actor;
 import com.kurenai.byril_test.Auxiliary.ShipsProvider;
-
 import static com.kurenai.byril_test.Auxiliary.Constants.*;
-
 import java.util.ArrayList;
 
 public class Map extends Actor {
 
     private TextureRegion mapBGTexture;
     private int mapX, mapY;
-    private boolean[][] placedShips;
+    private boolean[][] placedShipsPositions;
     private ArrayList<Ship> ships;
     private com.kurenai.byril_test.Auxiliary.ShipsProvider shipsProvider;
     private SpriteBatch batch;
@@ -26,7 +22,7 @@ public class Map extends Actor {
         this.batch = batch;
         this.mapX = mapX;
         this.mapY = mapY;
-        placedShips = new boolean[MAP_SIZE_ROWS][MAP_SIZE_COLUMNS];
+        placedShipsPositions = new boolean[MAP_SIZE_ROWS][MAP_SIZE_COLUMNS];
         shipsProvider = new ShipsProvider();
         ships = new ArrayList<>();
         placeShips();
@@ -53,7 +49,6 @@ public class Map extends Actor {
             else
                 // map cell size added because ship will be moved after rotating
                 batch.draw(ship,ship.getX() ,ship.getY() + MAP_CELL_SIZE,0,0,ship.getRegionWidth(),ship.getRegionHeight(),1,1,-90);
-
         }
     }
 
@@ -62,45 +57,48 @@ public class Map extends Actor {
         boolean[] canPlaceShip; // [0] - can place ship, [1] - place horizontally or vertically
         int cellColumn;
         int cellRow;
-        int triesToPlaceShip = 0; // used to prevent stucking while searching position for ship
-                                  // need to improve placing ship algorithm
 
         while(!shipPlaced){
-            if (triesToPlaceShip < MAX_PLACE_SHIP_TRIES) {
-                cellRow = MathUtils.random(MAP_SIZE_ROWS - 1);
-                cellColumn = MathUtils.random(MAP_SIZE_COLUMNS - 1);
-                canPlaceShip = canPlaceShip(cellRow, cellColumn, decksNumber);
-                triesToPlaceShip++;
-                if (canPlaceShip[0]) {
-                    Ship ship = shipsProvider.getShip(decksNumber);
-                    ship.setY(getMapX() + MAP_CELL_SIZE * cellRow);
-                    ship.setX(getMapY() + MAP_CELL_SIZE * (cellColumn + MAP_HOOD_SIZE));
-                    ship.setRotated(canPlaceShip[1]);
-                    ships.add(ship);
-                    shipPlaced = true;
-                }
-            }else{
+            cellRow = MathUtils.random(MAP_SIZE_ROWS - 1);
+            cellColumn = MathUtils.random(MAP_SIZE_COLUMNS - 1);
+            canPlaceShip = canPlaceShip(cellRow, cellColumn, decksNumber);
+            if (canPlaceShip[0]) {
+                // placing ship position to placed ships positions array
+                if (canPlaceShip[1])
+                    for (int i = cellColumn; i < cellColumn + decksNumber; i++)
+                        placedShipsPositions[cellRow][i] = true;
+                else
+                    for (int i = cellRow; i < cellRow + decksNumber; i++)
+                        placedShipsPositions[i][cellColumn] = true;
+
+                // creating & adding new ship to ships array
+                Ship ship = shipsProvider.getShip(decksNumber);
+                ship.setY(getMapX() + MAP_CELL_SIZE * cellRow);
+                ship.setX(getMapY() + MAP_CELL_SIZE * (cellColumn + MAP_HOOD_SIZE));
+                ship.setRotated(canPlaceShip[1]);
+                ships.add(ship);
                 shipPlaced = true;
-                replaceShips();
             }
         }
     }
 
     private void placeShips(){
 
-        for (int i = 0 ; i < 4 ; i++){
-            placeShipRandomly(1);
+        // so that everything fits, begin to place ships with the largest ones
+
+        placeShipRandomly(4);
+
+        for (int i = 0 ; i < 2 ; i++){
+            placeShipRandomly(3);
         }
 
         for (int i = 0 ; i < 3 ; i++){
             placeShipRandomly(2);
         }
 
-        for (int i = 0 ; i < 2 ; i++){
-            placeShipRandomly(3);
+        for (int i = 0 ; i < 4 ; i++){
+            placeShipRandomly(1);
         }
-
-        placeShipRandomly(4);
 
     }
 
@@ -109,60 +107,48 @@ public class Map extends Actor {
         boolean canPlaceHorizontal = false;
         boolean canPlaceShip;
 
+        int minCellRow = cellRow - 1;
+        int minCellColumn = cellColumn - 1;
+        int maxCellRow;
+        int maxCellColumn;
+
         if (!(cellRow + decksNumber > MAP_SIZE_ROWS)) { // checking if the ship fits map vertically
             canPlaceShip = true;
-
-            int minCellRow = cellRow - 1;
-            int minCellColumn = cellColumn - 1;
-            int maxCellRow = cellRow + decksNumber;
-            int maxCellColumn = cellColumn + 1;
-
+            maxCellRow = cellRow + decksNumber;
+            maxCellColumn = cellColumn + 1;
             // checking if there is no other ships near
             outerloop:
             for ( int x = minCellRow; x <= maxCellRow; x++ ) {
                 for ( int y = minCellColumn; y <= maxCellColumn; y++ ) {
                     if (x < MAP_SIZE_ROWS && y < MAP_SIZE_COLUMNS && x >= 0 && y>=0)
-                        if (placedShips[x][y]) {
+                        if (placedShipsPositions[x][y]) {
                             canPlaceShip = false;
                             break outerloop;
                         }
                 }
             }
-
-            if (canPlaceShip) { // placing ship into bool array of ships
-                for (int i = cellRow; i < cellRow + decksNumber; i++){
-                    placedShips[i][cellColumn] = true;
-                }
+            if (canPlaceShip)
                 canPlaceVertical = true;
-            }
         }
 
         if (cellColumn + decksNumber > MAP_SIZE_COLUMNS) // checking if the ship fits map horizontally
             return new boolean[]{false,false};
         else{
             canPlaceShip = true;
-
-            int minCellRow = cellRow - 1;
-            int minCellColumn = cellColumn - 1;
-            int maxCellRow = cellRow + 1;
-            int maxCellColumn = cellColumn + decksNumber;
-
+            maxCellRow = cellRow + 1;
+            maxCellColumn = cellColumn + decksNumber;
             outerloop:
             for ( int x = minCellRow; x <= maxCellRow; x++ ) {
                 for ( int y = minCellColumn; y <= maxCellColumn; y++ ) {
                     if (x < MAP_SIZE_ROWS && y < MAP_SIZE_COLUMNS && x >= 0 && y>=0)
-                        if (placedShips[x][y]) {
+                        if (placedShipsPositions[x][y]) {
                             canPlaceShip = false;
                             break outerloop;
                         }
                 }
             }
-            if (canPlaceShip) { // placing ship into bool array of ships
-                for (int i = cellColumn; i < cellColumn + decksNumber; i++) {
-                    placedShips[cellRow][i] = true;
-                }
+            if (canPlaceShip)
                 canPlaceHorizontal = true;
-            }
         }
 
         // if could be placed both ways then choosing randomly
@@ -199,7 +185,7 @@ public class Map extends Actor {
         ships.clear();
         for (int i = 0; i < MAP_SIZE_ROWS; i++)
             for (int j = 0; j < MAP_SIZE_COLUMNS; j++)
-                placedShips[i][j] = false;
+                placedShipsPositions[i][j] = false;
 
         placeShips();
     }
