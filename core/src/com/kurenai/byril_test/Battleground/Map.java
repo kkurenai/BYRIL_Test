@@ -4,6 +4,9 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.scenes.scene2d.Actor;
+import com.kurenai.byril_test.Auxiliary.Constants;
+import com.kurenai.byril_test.Auxiliary.Direction;
+import com.kurenai.byril_test.Auxiliary.Position;
 import com.kurenai.byril_test.Auxiliary.ShipsProvider;
 import static com.kurenai.byril_test.Auxiliary.Constants.*;
 import java.util.ArrayList;
@@ -44,7 +47,7 @@ public class Map extends Actor {
 
     private void drawShips(SpriteBatch batch){
         for(Ship ship: ships){
-            if(!ship.isRotated())
+            if(ship.getDirection() == Direction.VERTICAL)
                 batch.draw(ship, ship.getX(), ship.getY());
             else
                 // map cell size added because ship will be moved after rotating
@@ -53,32 +56,28 @@ public class Map extends Actor {
     }
 
     private void placeShipRandomly(int decksNumber){
-        boolean shipPlaced = false;
-        boolean[] canPlaceShip; // [0] - can place ship, [1] - place horizontally or vertically
-        int cellColumn;
-        int cellRow;
 
-        while(!shipPlaced){
-            cellRow = MathUtils.random(MAP_SIZE_ROWS - 1);
-            cellColumn = MathUtils.random(MAP_SIZE_COLUMNS - 1);
-            canPlaceShip = canPlaceShip(cellRow, cellColumn, decksNumber);
-            if (canPlaceShip[0]) {
-                // placing ship position to placed ships positions array
-                if (canPlaceShip[1])
-                    for (int i = cellColumn; i < cellColumn + decksNumber; i++)
-                        placedShipsPositions[cellRow][i] = true;
-                else
-                    for (int i = cellRow; i < cellRow + decksNumber; i++)
-                        placedShipsPositions[i][cellColumn] = true;
+        ArrayList<Position> availableShipPositions = getAvailableShipPositions(decksNumber);
 
-                // creating & adding new ship to ships array
-                Ship ship = shipsProvider.getShip(decksNumber);
-                ship.setY(getMapX() + MAP_CELL_SIZE * cellRow);
-                ship.setX(getMapY() + MAP_CELL_SIZE * (cellColumn + MAP_HOOD_SIZE));
-                ship.setRotated(canPlaceShip[1]);
-                ships.add(ship);
-                shipPlaced = true;
-            }
+        if (availableShipPositions.size() != 0) {
+            Position shipPosition = availableShipPositions.get(MathUtils.random(availableShipPositions.size() - 1));
+            int cellColumn = shipPosition.getColumn();
+            int cellRow = shipPosition.getRow();
+
+            // placing ship position to placed ships positions array
+            if (shipPosition.getDirection() == Direction.HORIZONTAL)
+                for (int i = cellColumn; i < cellColumn + decksNumber; i++)
+                    placedShipsPositions[cellRow][i] = true;
+            else
+                for (int i = cellRow; i < cellRow + decksNumber; i++)
+                    placedShipsPositions[i][cellColumn] = true;
+
+            // creating & adding new ship to ships array
+            Ship ship = shipsProvider.getShip(decksNumber);
+            ship.setY(getMapX() + MAP_CELL_SIZE * cellRow);
+            ship.setX(getMapY() + MAP_CELL_SIZE * (cellColumn + MAP_HOOD_SIZE));
+            ship.setDirection(shipPosition.getDirection());
+            ships.add(ship);
         }
     }
 
@@ -102,10 +101,28 @@ public class Map extends Actor {
 
     }
 
-    private boolean[] canPlaceShip(int cellRow, int cellColumn, int decksNumber){
-        boolean canPlaceVertical = false;
-        boolean canPlaceHorizontal = false;
+    private ArrayList<Position> getAvailableShipPositions(int decksNumber){
+
+        ArrayList<Position> availablePositions = new ArrayList<>();
+        ArrayList<Direction> directions;
+
+        for (int i = 0; i < MAP_SIZE_ROWS; i++)
+            for (int j = 0; j < MAP_SIZE_COLUMNS; j++) {
+
+                directions = canPlaceShip(i, j, decksNumber);
+                if (directions != null)
+                    for (Direction direction: directions)
+                        availablePositions.add(new Position(i, j, direction));
+
+            }
+
+        return availablePositions;
+    }
+
+    // checks if ship could be placed on given cell & row, return available directions
+    private ArrayList<Direction> canPlaceShip(int cellRow, int cellColumn, int decksNumber){
         boolean canPlaceShip;
+        ArrayList<Direction> directions = new ArrayList<>();
 
         int minCellRow = cellRow - 1;
         int minCellColumn = cellColumn - 1;
@@ -128,19 +145,19 @@ public class Map extends Actor {
                 }
             }
             if (canPlaceShip)
-                canPlaceVertical = true;
+                directions.add(Direction.VERTICAL);
         }
 
         if (cellColumn + decksNumber > MAP_SIZE_COLUMNS) // checking if the ship fits map horizontally
-            return new boolean[]{false,false};
-        else{
+            return null;
+        else {
             canPlaceShip = true;
             maxCellRow = cellRow + 1;
             maxCellColumn = cellColumn + decksNumber;
             outerloop:
-            for ( int x = minCellRow; x <= maxCellRow; x++ ) {
-                for ( int y = minCellColumn; y <= maxCellColumn; y++ ) {
-                    if (x < MAP_SIZE_ROWS && y < MAP_SIZE_COLUMNS && x >= 0 && y>=0)
+            for (int x = minCellRow; x <= maxCellRow; x++) {
+                for (int y = minCellColumn; y <= maxCellColumn; y++) {
+                    if (x < MAP_SIZE_ROWS && y < MAP_SIZE_COLUMNS && x >= 0 && y >= 0)
                         if (placedShipsPositions[x][y]) {
                             canPlaceShip = false;
                             break outerloop;
@@ -148,21 +165,10 @@ public class Map extends Actor {
                 }
             }
             if (canPlaceShip)
-                canPlaceHorizontal = true;
+                directions.add(Direction.HORIZONTAL);
         }
 
-        // if could be placed both ways then choosing randomly
-        if (canPlaceHorizontal && canPlaceVertical){
-            if(MathUtils.randomBoolean())
-                return new boolean[]{true, false};
-            else
-                return new boolean[]{true, true};
-        }else if (canPlaceHorizontal)
-            return new boolean[]{true, true};
-        else if (canPlaceVertical)
-            return new boolean[]{true, false};
-
-        return new boolean[]{false,false};
+        return directions;
     }
 
     public float getWidth(){

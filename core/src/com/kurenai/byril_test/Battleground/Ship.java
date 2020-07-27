@@ -1,10 +1,11 @@
 package com.kurenai.byril_test.Battleground;
 
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
+import com.kurenai.byril_test.Auxiliary.Direction;
 
 public class Ship extends TextureRegion{
 
-    private boolean rotated;
+    private Direction direction;
 
     private int x, y;
 
@@ -12,12 +13,12 @@ public class Ship extends TextureRegion{
         setRegion(shipTexture);
     }
 
-    public boolean isRotated(){
-        return rotated;
+    public Direction getDirection(){
+        return direction;
     }
 
-    public void setRotated(boolean isRotated){
-        rotated = isRotated;
+    public void setDirection(Direction direction){
+        this.direction = direction;
     }
 
     public int getX() {
